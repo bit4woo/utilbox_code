@@ -585,6 +585,26 @@ def get_base_url(url):
     return base_url
 
 
+def combine_urls(page_url, relative_urls):
+    """
+    这个函数的作用是拼接页面的URL，和html中点击href链接的逻辑一致：
+    如果href的值以斜杠（/）开头，则表示该链接是相对于站点根目录的路径，而如果href的值不以斜杠开头，则表示该链接是相对于当前页面的路径
+    :page_url 页面URL，
+    :relative_urls 访问页面URL获得的HTML中的href值
+    """
+    result = []
+    base_url = get_base_url(page_url)
+
+    for rel_url in relative_urls:
+        if rel_url.startswith("/"):
+            full_url = base_url + rel_url
+        else:
+            full_url = page_url.rstrip("/") + "/" + rel_url.lstrip("/")
+        result.append(full_url)
+
+    return result
+
+
 def get_files_in_path(path):
     """
     获取某个路径中所有文件的绝对路径
