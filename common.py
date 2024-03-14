@@ -116,20 +116,45 @@ def clean_list(lines, spliter=None, do_strip=True, remove_empty=True):
     默认对每个元素进行strip
     默认删除空字符串
     :param lines:
-    :param spliter:
+    :param spliter:可以是字符串，也可以是包含多个字符串的list、set等可迭代对象
     :param do_strip:
     :param remove_empty:
     :return:
     """
     if isinstance(lines, list):
         if spliter:
-            lines = [item for line in lines for item in line.split(spliter)]
+            if isinstance(spliter, str):
+                lines = [item for line in lines for item in line.split(spliter)]
+            if is_iterable_of_type(spliter,str):
+                for sp_item in spliter:
+                    lines = [item for line in lines for item in line.split(sp_item)]
         if do_strip:
             lines = [line.strip() for line in lines]
         if remove_empty and "" in lines:
             lines = [line for line in lines if line != ""]
         return lines
     return lines
+
+
+def is_iterable_of_type(obj, obj_type):
+    """
+    判断传入的对象，是否是一个可迭代对象，而且其中的元素是某个python支持的类型。比如 一个元素都是str的list
+    """
+    # 确保传递的类型是正确的
+    if not isinstance(obj_type, type):
+        raise TypeError("obj_type must be a valid type")
+
+    try:
+        # 判断对象是否可迭代
+        iter_obj = iter(obj)
+    except TypeError:
+        return False
+
+    # 遍历迭代器中的每个元素，确保都是指定的类型
+    for item in iter_obj:
+        if not isinstance(item, obj_type):
+            return False
+    return True
 
 
 def get_lines_from_file(file_path, spliter=";", do_strip=True, remove_empty=True):
@@ -837,5 +862,12 @@ def get_files_in_dir(directory, extensions=None, include_subdir=True):
 
 
 if __name__ == '__main__':
-    param1 = get_input_values("url")
-    print(param1)
+    # 测试对象是否是可迭代的并且其中的元素都是字符串类型
+    print(is_iterable_of_type(['hello', 'world'], str))  # 输出 True
+    print(is_iterable_of_type(['hello', 123], str))  # 输出 False，其中一个元素不是字符串类型
+
+    # 测试传递正确的类型
+    try:
+        print(is_iterable_of_type(['hello', 'world'], list))  # 输出 True
+    except TypeError as e:
+        print(e)
