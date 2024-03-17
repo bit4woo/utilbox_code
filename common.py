@@ -125,7 +125,7 @@ def clean_list(lines, spliter=None, do_strip=True, remove_empty=True):
         if spliter:
             if isinstance(spliter, str):
                 lines = [item for line in lines for item in line.split(spliter)]
-            if is_iterable_of_type(spliter,str):
+            if is_iterable_of_type(spliter, str):
                 for sp_item in spliter:
                     lines = [item for line in lines for item in line.split(sp_item)]
         if do_strip:
@@ -359,6 +359,48 @@ def get_base_url(url):
     parsed_url = urlparse(url)
     base_url = urlunparse((parsed_url.scheme, parsed_url.netloc, '', '', '', ''))
     return base_url
+
+
+def get_host_port(target, default_port=None):
+    """
+    一些可能的案例：
+    "ssh://127.0.0.1",
+    "127.0.0.1:8899",
+    "http://127.84.20:81",
+    "ftp://example.com:2121/path/to/file",
+    "sftp://user:pass@localhost:2222/some/path"
+
+    :param target:
+    :param default_port:
+    :return:
+    """
+    try:
+        # 初始化端口
+        port = default_port
+
+        # 去除协议部分
+        if "://" in target:
+            target = target.split("://", 1)[1]
+
+        # 去除用户名和密码部分
+        if "@" in target:
+            target = target.split("@", 1)[1]
+
+        # 提取主机和端口
+        if ":" in target:
+            ip, port_part = target.split(":", 1)
+            if "/" in port_part:
+                port = port_part.split("/", 1)[0]
+            else:
+                port = port_part
+        else:
+            ip = target
+
+        # 返回解析结果
+        return ip, int(port)
+    except Exception as e:
+        print(f"Error occurred while parsing target: {e}")
+        return None, None
 
 
 def url_encode(url):
