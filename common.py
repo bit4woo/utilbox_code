@@ -12,6 +12,7 @@ import socket
 import string
 import subprocess
 import sys
+import traceback
 import urllib
 from collections import OrderedDict
 from urllib.parse import urlparse, urlunparse
@@ -210,6 +211,60 @@ def get_lines_from_console(spliter=";", do_strip=True, remove_empty=True):
     return clean_list(lines, spliter, do_strip, remove_empty)
 
 
+def grep_domain_name(text: str, endswith: str = None) -> List[str]:
+    """
+    Extracts domain names from text that end with the specified suffix.
+
+    :param text: The input text containing domain names.
+    :param endswith: The suffix that the domain names should end with. If None, match all domains.
+    :return: A list of domain names.
+    """
+    if endswith:
+        domain_pattern = re.compile(r'[a-zA-Z0-9][a-zA-Z0-9.-]*\.' + re.escape(endswith))
+    else:
+        domain_pattern = re.compile(r'[a-zA-Z0-9][a-zA-Z0-9.-]*\.[a-zA-Z]+')
+
+    # 使用findall函数找到所有匹配的域名
+    matches = domain_pattern.findall(text)
+
+    # 返回匹配结果
+    return matches
+
+
+def grep_ipv4(text: str) -> List[str]:
+    """
+    Extracts valid IPv4 addresses from text.
+
+    :param text: The input text containing IPv4 addresses.
+    :return: A list of valid IPv4 addresses.
+    """
+    # IPv4 地址的正则表达式
+    ipv4_pattern = re.compile(
+        r'\b(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b')
+
+    # 使用 findall 函数找到所有匹配的 IPv4 地址
+    ipv4_addresses = ipv4_pattern.findall(text)
+
+    return ipv4_addresses
+
+
+def grep_email(text: str, endswith: str = None) -> list:
+    """
+    Extracts email addresses from text.
+
+    :param text: The input text containing email addresses.
+    :param endswith: A suffix to filter email addresses by their domain.
+    :return: A list of email addresses.
+    """
+    if endswith:
+        reg = rf'[a-zA-Z0-9.\-_+#~!$&,;=:+]+@[a-zA-Z0-9.-]*{endswith}\b'
+    else:
+        reg = r'[a-zA-Z0-9.\-_+#~!$&,;=:+]+@[a-zA-Z0-9.-]+\.[a-zA-Z]+'
+    reg_emails = re.compile(reg)
+    emails = reg_emails.findall(text)
+    return emails
+
+
 def is_valid_domain(domain):
     domain_pattern = "^((?!-)[A-Za-z0-9-]{1,63}(?<!-)\\.)+[A-Za-z]{2,6}$"
     return re.match(domain_pattern, domain) is not None
@@ -296,18 +351,22 @@ def get_logger(log_file_name='logger.log'):
     return logger
 
 
-def gen_random_str(to_void):
-    # 定义包含所有可能字符的字符集合
-    while True:
-        # characters = string.ascii_letters + string.digits + string.punctuation
-        characters = string.ascii_letters + string.digits
-        # 使用random.choices()函数从字符集合中随机选择字符，并生成随机字符串
-        random_string = ''.join(random.choices(characters, k=5))
+def gen_random_str(length, include_uppercase=True, include_lowercase=True, include_digits=True,
+                   include_special_chars=False):
+    chars = ''
+    if include_uppercase:
+        chars += string.ascii_uppercase
+    if include_lowercase:
+        chars += string.ascii_lowercase
+    if include_digits:
+        chars += string.digits
+    if include_special_chars:
+        chars += string.punctuation
 
-        if to_void and random_string in to_void:
-            continue
-        else:
-            return random_string
+    if not chars:
+        raise ValueError("At least one character type must be included")
+
+    return ''.join(random.choice(chars) for _ in range(length))
 
 
 def highlight_print(content, tips=""):
@@ -349,6 +408,25 @@ def is_using_socks_proxy():
     return socket.socket == socks.socksocket
 
 
+def get_cookie_dict(cookie_str):
+    """
+    将字符串格式的cookie转换为字典格式，方便在requests包中使用
+    """
+    if not isinstance(cookie_str, str):
+        raise TypeError("Input must be a string")
+    result = {}
+    lines = cookie_str.splitlines()
+    for line in lines:
+        if line.lower().startswith("cookie:"):
+            line = line.split(":", 1)[1]
+        for item in line.split(";"):
+            item = item.strip()
+            if "=" in item:
+                key, value = item.split("=", 1)
+                result[key.strip()] = value.strip()
+    return result
+
+
 def get_base_url(url):
     '''
     return 末尾不包含/
@@ -361,32 +439,40 @@ def get_base_url(url):
     return base_url
 
 
-def get_host_port(target, default_port=None):
+def get_host_port(target: str, default_port: int = None) -> tuple:
     """
-    一些可能的案例：
-    "ssh://127.0.0.1",
-    "127.0.0.1:8899",
-    "http://127.84.20:81",
-    "ftp://example.com:2121/path/to/file",
-    "sftp://user:pass@localhost:2222/some/path"
+    Extracts host and port from a target string.
 
-    :param target:
-    :param default_port:
-    :return:
+    Possible target formats:
+    - "ssh://127.0.0.1"
+    - "127.0.0.1:8899"
+    - "http://127.84.20:81"
+    - "ftp://example.com:2121/path/to/file"
+    - "sftp://user:pass@localhost:2222/some/path"
+
+    :param target: The target string containing host and port information.
+    :param default_port: The default port to use if not specified in the target string.
+    :return: A tuple containing host and port.
     """
     try:
-        # 初始化端口
-        port = default_port
+        # Check input types
+        if not isinstance(target, str):
+            raise TypeError("Target must be a string")
+        if default_port is not None and not isinstance(default_port, int):
+            raise TypeError("Default port must be an integer")
 
-        # 去除协议部分
+        # Initialize variables
+        port = -1
+
+        # Remove protocol part
         if "://" in target:
             target = target.split("://", 1)[1]
 
-        # 去除用户名和密码部分
+        # Remove username and password part
         if "@" in target:
             target = target.split("@", 1)[1]
 
-        # 提取主机和端口
+        # Extract host and port
         if ":" in target:
             ip, port_part = target.split(":", 1)
             if "/" in port_part:
@@ -396,10 +482,16 @@ def get_host_port(target, default_port=None):
         else:
             ip = target
 
-        # 返回解析结果
-        return ip, int(port)
+        # Return the result
+        try:
+            port = int(port)
+        except:
+            pass
+        if not port:
+            port = -1
+        return ip, port
     except Exception as e:
-        print(f"Error occurred while parsing target: {e}")
+        traceback.print_exc()
         return None, None
 
 
@@ -672,26 +764,6 @@ def combine_urls(page_url, relative_urls):
     return result
 
 
-def get_files_in_path(path):
-    """
-    获取某个路径中所有文件的绝对路径
-    """
-    file_list = []
-
-    # 如果是文件，直接返回文件的绝对路径
-    if os.path.isfile(path):
-        return [os.path.abspath(path)]
-
-    # 如果是目录，遍历目录及其子目录，返回所有文件的绝对路径列表
-    if os.path.isdir(path):
-        for root, dirs, files in os.walk(path):
-            for file in files:
-                file_path = os.path.join(root, file)
-                file_list.append(os.path.abspath(file_path))
-
-    return file_list
-
-
 def contains_any(string, keywords):
     """
     判断string是否包含任何一个关键词
@@ -904,12 +976,7 @@ def get_files_in_dir(directory, extensions=None, include_subdir=True):
 
 
 if __name__ == '__main__':
-    # 测试对象是否是可迭代的并且其中的元素都是字符串类型
-    print(is_iterable_of_type(['hello', 'world'], str))  # 输出 True
-    print(is_iterable_of_type(['hello', 123], str))  # 输出 False，其中一个元素不是字符串类型
-
-    # 测试传递正确的类型
-    try:
-        print(is_iterable_of_type(['hello', 'world'], list))  # 输出 True
-    except TypeError as e:
-        print(e)
+    # 测试函数
+    text = "Visit us at htsstps://xxx.example.com or htaatp://sub.example.co.uk for more information."
+    domains = get_host_port(text)
+    print(domains)
