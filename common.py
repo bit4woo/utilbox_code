@@ -15,6 +15,7 @@ import sys
 import traceback
 import urllib
 from collections import OrderedDict
+from typing import List
 from urllib.parse import urlparse, urlunparse
 
 # 上面是标准库，下面是第三方库库
@@ -680,20 +681,30 @@ def startswith_regex(pattern, text):
         return False
 
 
-def extract_between(text, start, end):
+def extract_between(text, start, end, case_sensitive=True, multiline=False):
     """
-    提取2个字符串之间的内容,返回一个列表
-    :param text:
-    :param start:
-    :param end:
-    :return:
+    提取两个字符串之间的内容，返回一个列表。
+    :param text: 待提取的文本。
+    :param start: 起始字符串。
+    :param end: 结束字符串。
+    :param case_sensitive: 是否区分大小写，默认为True（区分大小写）。
+    :param multiline: 是否启用多行模式，默认为False（单行模式）。
+    :return: 匹配到的内容列表。
     """
+    # 根据是否区分大小写设置 re.IGNORECASE 标志
+    flags = 0 if case_sensitive else re.IGNORECASE
+    # 根据是否启用多行模式设置 re.DOTALL 标志
+    flags |= re.DOTALL if multiline else 0
     pattern = re.escape(start) + r"(.*?)" + re.escape(end)
-    matches = re.findall(pattern, text)
-    if matches:
-        return matches
-    else:
-        return []
+    matches = re.findall(pattern, text, flags=flags)
+    return matches
+
+
+def grep_between(text, start, end, case_sensitive=True, multiline=False):
+    """
+    同extract_between
+    """
+    return extract_between(text, start, end, case_sensitive, multiline)
 
 
 def findfirst_regex(pattern, text):
@@ -977,6 +988,7 @@ def get_files_in_dir(directory, extensions=None, include_subdir=True):
 
 if __name__ == '__main__':
     # 测试函数
-    text = "Visit us at htsstps://xxx.example.com or htaatp://sub.example.co.uk for more information."
-    domains = get_host_port(text)
+    text = "Visit us at htsstps://xxx.example.com \n\r" \
+           "or htaatp://sub.example.co.uk for more information."
+    domains = grep_between(text, "htsstps", "information", multiline=True)
     print(domains)
