@@ -602,7 +602,7 @@ def get_element_attr(element, attr_name):
         return result
 
 
-def find_elements(html, name, attr_names: list = None, keywords: list = None):
+def find_elements(html, name, keywords: list = [], startswith=None, endswith=None):
     """
     HTML元素指的是从开始标签（start tag）到结束标签（end tag）的所有代码。BeautifulSoup的Tag对象（即元素）
     元素可拥有属性，属性总是以名称/值对的形式出现，比如：name="value"。
@@ -610,29 +610,30 @@ def find_elements(html, name, attr_names: list = None, keywords: list = None):
     <input checkDependsOn="credentialsId" checkMethod="post" checkUrl="/job/" name="_.url" placeholder="" type="text" class="jenkins-input validated  " value="">
     :param html:
     :param keywords: 关键词列表，将整个元素当作字符串看待，字符串需要包含所有的关键词
-    :param attr_names: 传递一个列表，列表中的元素是需要包含的属性名称
     :param name: 的作用对象是tag的名称，比如input、head等
     :return Tag对象的list
     """
+
+    result = []
+
     if keywords is None:
         keywords = []
-    if attr_names is None:
-        attr_names = []
-    result = []
     soup = BeautifulSoup(html, 'html.parser')
 
-    result_dict = {str(attr_name).lower(): True for attr_name in attr_names if str(attr_name).lower() not in ["name"]}
-    # 需要排除和find_all同名的参数，否则会报错
-    # 使用字典解包的方式将值传递给函数作为参数
-    elements = soup.find_all(name=name, **result_dict)
+    elements = soup.find_all(name=name)
 
     # 使用集合来加速关键词匹配
     keywords_set = set(keywords)
     for element in elements:
         # 将元素转换为字符串，然后检查关键词是否在其中
         element_str = str(element)
-        if all(keyword in element_str for keyword in keywords_set):
-            result.append(element)
+        if any(keyword not in element_str for keyword in keywords_set):
+            continue
+        if startswith and not element_str.startswith(startswith):
+            continue
+        if endswith and not element_str.endswith(endswith):
+            continue
+        result.append(element)
     return result
 
 
