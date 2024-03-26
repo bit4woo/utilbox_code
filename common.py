@@ -618,6 +618,8 @@ def find_elements(html, name, keywords: list = [], startswith=None, endswith=Non
 
     if keywords is None:
         keywords = []
+    if not isinstance(html, str):
+        html = str(html)
     soup = BeautifulSoup(html, 'html.parser')
 
     elements = soup.find_all(name=name)
