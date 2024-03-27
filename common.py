@@ -440,7 +440,21 @@ def get_base_url(url):
     return base_url
 
 
-def get_host_port(target: str, default_port: int = None) -> tuple:
+def get_default_port(protocol: str) -> int:
+    """
+    Get the default port number for a given protocol.
+
+    :param protocol: The protocol name (e.g., 'http', 'ftp', 'ssh', etc.).
+    :return: The default port number for the protocol.
+    """
+    try:
+        port = socket.getservbyname(protocol)
+        return port
+    except OSError as e:
+        return -1
+
+
+def get_host_port(target: str) -> tuple:
     """
     Extracts host and port from a target string.
 
@@ -452,22 +466,39 @@ def get_host_port(target: str, default_port: int = None) -> tuple:
     - "sftp://user:pass@localhost:2222/some/path"
 
     :param target: The target string containing host and port information.
-    :param default_port: The default port to use if not specified in the target string.
     :return: A tuple containing host and port.
     """
-    try:
-        # Check input types
-        if not isinstance(target, str):
-            raise TypeError("Target must be a string")
-        if default_port is not None and not isinstance(default_port, int):
-            raise TypeError("Default port must be an integer")
 
+    # Check input types
+    if not isinstance(target, str):
+        raise TypeError("Target must be a string")
+
+    try:
+        # Parse the target URL
+        parsed = urlparse(target)
+
+        # Extract host and port
+        host = parsed.hostname
+        port = parsed.port
+        protocol = parsed.scheme
+
+        # Use default port if not specified
+        if port is None or port == -1:
+            port = get_default_port(protocol)
+
+        # Return the result
+        return host, port
+    except Exception as e:
+        traceback.print_exc()
+
+    try:
         # Initialize variables
         port = -1
 
         # Remove protocol part
         if "://" in target:
-            target = target.split("://", 1)[1]
+            protocol, target = target.split("://", 1)
+            port = get_default_port(protocol)
 
         # Remove username and password part
         if "@" in target:
@@ -475,22 +506,19 @@ def get_host_port(target: str, default_port: int = None) -> tuple:
 
         # Extract host and port
         if ":" in target:
-            ip, port_part = target.split(":", 1)
+            target, port_part = target.split(":", 1)
             if "/" in port_part:
-                port = port_part.split("/", 1)[0]
+                port_str = port_part.split("/", 1)[0]
             else:
-                port = port_part
-        else:
-            ip = target
-
+                port_str = port_part
+        if "/" in target:
+            target = target.split("/", 1)[0]
         # Return the result
         try:
-            port = int(port)
+            port = int(port_str)
         except:
             pass
-        if not port:
-            port = -1
-        return ip, port
+        return target, port
     except Exception as e:
         traceback.print_exc()
         return None, None
