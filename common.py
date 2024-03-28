@@ -551,10 +551,12 @@ def get_args(*args):
     a,b,c = get_args(3)
     a,b,c = get_args("param1", "param2", "param3")
     """
-    if len(args) == 0 or (len(args) >= 1 and isinstance(args[0], int)):
-        return __get_args__(args[0])
+    if len(args) == 0:
+        return __get_args__()
+    if len(args) >= 1 and isinstance(args[0], int):
+        return __get_args__(*args)
     else:
-        return __get_named_args__(args)
+        return __get_named_args__(*args)
 
 
 def __get_args__(arg_num=1):
