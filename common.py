@@ -545,11 +545,23 @@ def url_decode(url):
     return urllib.parse.unquote(url)
 
 
-def get_args(arg_num=1):
+def get_args(*args):
+    """
+    a = get_args()
+    a,b,c = get_args(3)
+    a,b,c = get_args("param1", "param2", "param3")
+    """
+    if len(args) == 0 or (len(args) >= 1 and isinstance(args[0], int)):
+        return __get_args__(args[0])
+    else:
+        return __get_named_args__(args)
+
+
+def __get_args__(arg_num=1):
     """
     从用户输入获取多个变量的值，类似如下的用法
-    a = get_input_values()
-    a,b,c = get_input_values(3)
+    a = __get_args__()
+    a,b,c = __get_args__(3)
     """
     result = list()
 
@@ -575,10 +587,10 @@ def get_args(arg_num=1):
         return tuple(result)
 
 
-def get_named_args(*arg_names):
+def __get_named_args__(*arg_names):
     """
     从用户输入获取多个变量的值，类似如下的用法
-    a,b,c = get_input_values("param1", "param2", "param3")
+    a,b,c = __get_named_args__("param1", "param2", "param3")
     """
 
     result = list()
@@ -1068,5 +1080,6 @@ def get_files_in_dir(directory, extensions=None, include_subdir=True):
 
 if __name__ == '__main__':
     # aaa = get_named_args("aaa","bbb","ccc")
-    bb = get_args(3)
+    # bb = get_args(3)
+    bb = get_args("3")
     print(bb)
