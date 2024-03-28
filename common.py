@@ -220,6 +220,8 @@ def grep_domain_name(text: str, endswith: str = None) -> List[str]:
     :param endswith: The suffix that the domain names should end with. If None, match all domains.
     :return: A list of domain names.
     """
+    if not text:
+        return []
     if endswith:
         domain_pattern = re.compile(r'[a-zA-Z0-9][a-zA-Z0-9.-]*\.' + re.escape(endswith))
     else:
@@ -239,6 +241,8 @@ def grep_ipv4(text: str) -> List[str]:
     :param text: The input text containing IPv4 addresses.
     :return: A list of valid IPv4 addresses.
     """
+    if not text:
+        return []
     # IPv4 地址的正则表达式
     ipv4_pattern = re.compile(
         r'\b(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b')
@@ -257,6 +261,8 @@ def grep_email(text: str, endswith: str = None) -> list:
     :param endswith: A suffix to filter email addresses by their domain.
     :return: A list of email addresses.
     """
+    if not text:
+        return []
     if endswith:
         reg = rf'[a-zA-Z0-9.\-_+#~!$&,;=:+]+@[a-zA-Z0-9.-]*{endswith}\b'
     else:
@@ -267,6 +273,13 @@ def grep_email(text: str, endswith: str = None) -> list:
 
 
 def is_valid_domain(domain):
+    """
+    match 函数用于尝试从字符串的开头开始匹配模式，并返回匹配对象。主要用于判断字符串是否是某种特点类型，比如域名、邮箱、IP
+    search 函数用于在整个字符串中搜索第一个匹配的模式，并返回匹配对象。用于提取
+    findall 函数用于在整个字符串中搜索所有匹配的模式，并返回匹配的字符串列表。用于提取
+    """
+    if not domain:
+        return False
     domain_pattern = "^((?!-)[A-Za-z0-9-]{1,63}(?<!-)\\.)+[A-Za-z]{2,6}$"
     return re.match(domain_pattern, domain) is not None
 
